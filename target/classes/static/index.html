@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Library Management - Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin:auto; }
+    h1 { color: #2c3e50; }
+    .book { padding: 10px; border: 1px solid #ddd; margin-bottom: 8px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;}
+    .controls { margin-top: 16px; }
+    input, button { padding: 8px; margin-right:8px; }
+    #message { color: green; margin-top:10px; }
+  </style>
+</head>
+<body>
+  <h1>Library Management (Demo)</h1>
+  <p>Simple frontend to view, add and delete books. Backend: <code>/books</code></p>
+
+  <div id="list"></div>
+
+  <div class="controls">
+    <input id="title" placeholder="Book Title" />
+    <input id="author" placeholder="Author" />
+    <button id="add">Add Book</button>
+    <span id="message"></span>
+  </div>
+
+  <script>
+    const listEl = document.getElementById('list');
+    const msg = document.getElementById('message');
+
+    async function fetchBooks() {
+      const res = await fetch('/books');
+      const books = await res.json();
+      render(books);
+    }
+
+    function render(books) {
+      if (!books || books.length === 0) {
+        listEl.innerHTML = '<p><i>No books found.</i></p>';
+        return;
+      }
+      listEl.innerHTML = '';
+      books.forEach(b => {
+        const div = document.createElement('div');
+        div.className = 'book';
+        div.innerHTML = '<div><strong>' + escapeHtml(b.title) + '</strong><br/><small>' + escapeHtml(b.author) + '</small></div>' +
+                        '<div><button data-id="'+b.id+'" class="del">Delete</button></div>';
+        listEl.appendChild(div);
+      });
+      document.querySelectorAll('.del').forEach(btn => {
+        btn.onclick = async (e) => {
+          const id = e.target.getAttribute('data-id');
+          await fetch('/books/' + id, { method: 'DELETE' });
+          msg.textContent = 'Deleted book ' + id;
+          setTimeout(()=>msg.textContent='',1500);
+          fetchBooks();
+        };
+      });
+    }
+
+    function escapeHtml(text) {
+      return text ? text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+    }
+
+    document.getElementById('add').onclick = async () => {
+      const title = document.getElementById('title').value.trim();
+      const author = document.getElementById('author').value.trim();
+      if (!title || !author) { msg.textContent = 'Title and author required'; return; }
+      const res = await fetch('/books', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, author })
+      });
+      if (res.ok) {
+        document.getElementById('title').value=''; document.getElementById('author').value='';
+        msg.textContent = 'Book added';
+        setTimeout(()=>msg.textContent='',1500);
+        fetchBooks();
+      } else {
+        msg.textContent = 'Error adding book';
+      }
+    };
+
+    // initial load
+    fetchBooks();
+  </script>
+</body>
+</html>
